@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 
 ####
 f_start = 5e4   # in Hz
-f_stop = 3e9    # in Hz
+f_stop = 6.3e9    # in Hz
 n_points = 201
 
 print("connecting to the NanoVNA... ")
 instrument = nvna.NVNA()
+print('connected')
 
 
 #### fonctions
@@ -40,6 +41,26 @@ if __name__ == '__main__':
     freq, S11_m = instrument.get_S11(f_start, f_stop, n_points)
     Z_m_deembed = de_embed(S11_m, Z_open, Z_short, Z_50)
     
+    '''
+    input('plug GREEN measurement Load')
+    freq, S11_m2 = instrument.get_S11(f_start, f_stop, n_points)
+    Z_m2_deembed = de_embed(S11_m2, Z_open, Z_short, Z_50)
+    
+    input('plug YELLOW measurement Load')
+    freq, S11_m3 = instrument.get_S11(f_start, f_stop, n_points)
+    Z_m3_deembed = de_embed(S11_m3, Z_open, Z_short, Z_50)
+    '''
+    input('plug OTHER measurement Load')
+    freq, S11_m4 = instrument.get_S11(f_start, f_stop, n_points)
+    Z_m4_deembed = de_embed(S11_m4, Z_open, Z_short, Z_50)
+    
+    input('plug CMS measurement Load')
+    freq, S11_m5 = instrument.get_S11(f_start, f_stop, n_points)
+    Z_m5_deembed = de_embed(S11_m5, Z_open, Z_short, Z_50)
+    
+    input('plug CMS-RF measurement Load')
+    freq, S11_m6 = instrument.get_S11(f_start, f_stop, n_points)
+    Z_m6_deembed = de_embed(S11_m6, Z_open, Z_short, Z_50)
     
     plt.figure()
     plt.plot(freq, np.abs(Z_open), label='Open')
@@ -49,7 +70,10 @@ if __name__ == '__main__':
     plt.legend()
     
     plt.figure()
-    plt.plot(freq, np.abs(Z_m_deembed),label='capa')
+    plt.plot(freq, np.abs(Z_m_deembed),label='capa traversante')
+    plt.plot(freq, np.abs(Z_m4_deembed),label='capa mal soudée')
+    plt.plot(freq, np.abs(Z_m5_deembed),label='capa CMS')
+    plt.plot(freq, np.abs(Z_m6_deembed),label='capa CMS-RF')
     plt.loglog()
     plt.legend()
     

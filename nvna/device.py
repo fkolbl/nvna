@@ -94,10 +94,18 @@ class NVNA:
         if connect:
             self._connect()
             self.connected = True
-        # last measurement
+        # last measurement and calibration
         self._frequencies = None
         self._S11 = None
+        self._S11_OPEN = None
+        self._S11_SHORT = None
+        self._S11_LOAD = None
+        self._S11_THROUGH = None
         self._S21 = None
+        self._S21_OPEN = None
+        self._S21_SHORT = None
+        self._S21_LOAD = None
+        self._S11_THROUGH = None
 
     def __del__(self):
         """Class destructor
@@ -107,6 +115,7 @@ class NVNA:
             self._disconnect()
         # remove from instance list
         NVNA.nvna_IDs.remove(self.ID)
+        print(len(NVNA.nvna_instances))
         NVNA.nvna_instances.remove(self)
 
     def _connect(self):
@@ -118,7 +127,7 @@ class NVNA:
         self.device_info = get_device(vid=self.vid, pid=self.pid)
         if self.device_info is not None:
             try:
-                self.serial = serial.Serial(self.device_info['device'])
+                self.serial = serial.Serial(self.device_info['device'], baudrate=115200)
             except:
                 raise # to be completed
         else:
@@ -281,3 +290,6 @@ class NVNA:
         self._frequencies = np.array(freqs, dtype=np.float64)
         self._S21 = np.array(S21, dtype=np.complex128)
         return self._frequencies, self._S21
+    
+    def SOL_S11_calibration(self):
+        pass
