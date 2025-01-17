@@ -5,13 +5,15 @@ import numpy as np
 
 from .exceptions import NvnaDeviceNotFound, NvnaIDNotAvailable
 
+import matplotlib.pyplot as plt
+
 ###############
 ## Constants ##
 ###############
 nvna_constants = {
     'nvna_vid': 0x0483,   # 1155
     'nvna_pid': 0x5740,   # 22336
-    'nvna_FMIN': 5e4,
+    'nvna_FMIN': 5e5,
     'nvna_FMAX': 3e9,
     'nvna_NptsMIN': 11,
     'nvna_NptsMAX': 201,
@@ -35,6 +37,15 @@ def get_device(vid=nvna_constants['nvna_vid'], pid=nvna_constants['nvna_pid']):
                 'name': device.name,
             }
     return device_info
+
+def S2Z(S, z0=50.):
+    return z0 * ((1+S)/(1-S))
+
+def Z_de_embed(S, Z_short, Z_open, Z_load, z0=50):
+    Z_m = S2Z(S)
+    num = z0*(Z_m-Z_short)*(Z_open-Z_load)
+    denom = (Z_open-Z_m)*(Z_load-Z_short)
+    return num/denom
 
 #############
 ## Classes ##
@@ -94,12 +105,19 @@ class NVNA:
         if connect:
             self._connect()
             self.connected = True
+        # config
+        self._fmin = None
+        self._fmax = None
+        self._npts = None
         # last measurement and calibration
         self._frequencies = None
         self._S11 = None
         self._S11_OPEN = None
         self._S11_SHORT = None
         self._S11_LOAD = None
+        self._Z_OPEN = None
+        self._Z_SHORT = None
+        self._Z_LOAD = None
         self._S11_THROUGH = None
         self._S21 = None
         self._S21_OPEN = None
@@ -224,6 +242,11 @@ class NVNA:
             self.send_command("sweep points %d\r" % actual_npoints)
 
     def get_frequencies(self):
+        """Get the frequency vector of the current sweep
+        
+        Returns:
+            np.array: array of frequencies in Hz
+        """
         self.send_command("frequencies\r")
         data = self.get_data()
         freqs = []
@@ -234,6 +257,20 @@ class NVNA:
         return self._frequencies
 
     def get_S_parameters(self, start, stop, Npoints):
+        """Get the S parameters from the device
+        Note that last measurement is stored in the instance at _frequencies, _S11, _S21
+        attributes
+
+        Args:
+            start (float): starting frequency of the measurement in Hz
+            stop (float): stopping frequency of the measurement in Hz
+            Npoints (int): number of points in the frequency sweep
+
+        Returns:
+            freqencies (np.array): array of frequencies in Hz
+            S11 (np.array): reflection S parameter
+            S21 (np.array): transmission S parameter
+        """
         actual_start = int(start)
         actual_stop = int(stop)
         actual_Npoints = int(Npoints)
@@ -291,5 +328,80 @@ class NVNA:
         self._S21 = np.array(S21, dtype=np.complex128)
         return self._frequencies, self._S21
     
-    def SOL_S11_calibration(self):
-        pass
+    def PORT1_calibration(self, fmin = None, fmax = None, n_pts = None, n_average = 6):
+        """
+        Calibrate the S11 measurement using SOL technique. 
+        Does not deembed measurements, but stores the calibration vectors in
+        _S11_OPEN, _S11_SHORT, _S11_LOAD attributes
+
+        Returns:
+            None
+        """
+        print(
+            """-----------------------------------------------------\n
+-- Short Open Load calibration for S11 one port use --\n
+-----------------------------------------------------\n"""
+        )
+        # update device config if necessary
+        if fmin is not None:
+            self._fmin = fmin
+        else:
+            self._fmin = nvna_constants["nvna_FMIN"]
+        if fmax is not None:
+            self._fmax = fmax
+        else:
+            self._fmax = nvna_constants["nvna_FMAX"]
+        if n_pts is not None:
+            self._npts = n_pts
+        else:
+            self._npts = nvna_constants["nvna_NptsMAX"]
+        # perform SOL measurements
+        input('Plug SHORT termination to PORT1 and press Enter')
+        S11_short_all = np.zeros((n_average, self._npts), dtype=np.complex128)
+        for k in range(n_average):
+            freq, S11_short = self.get_S11(self._fmin, self._fmax, self._npts)
+            S11_short_all[k, :] = S11_short
+        input('Plug OPEN termination to PORT1 and press Enter')
+        S11_open_all = np.zeros((n_average, self._npts), dtype=np.complex128)
+        for k in range(n_average):
+            _, S11_open = self.get_S11(self._fmin, self._fmax, self._npts)
+            S11_open_all[k, :] = S11_open
+        input('Plug 50Ohm termination to PORT1 and press Enter')
+        S11_50_all = np.zeros((n_average, self._npts), dtype=np.complex128)
+        for k in range(n_average):
+            _, S11_50 = self.get_S11(self._fmin, self._fmax, self._npts)
+            S11_50_all[k, :] = S11_50
+        # store for future use
+        self._frequencies = freq
+        self._S11_SHORT = np.average(S11_short_all, axis = 0)
+        self._S11_OPEN = np.average(S11_open_all, axis = 0)
+        self._S11_LOAD = np.average(S11_50_all, axis = 0)
+        # convert to impedance
+        self._Z_SHORT = S2Z(self._S11_SHORT)
+        self._Z_OPEN = S2Z(self._S11_OPEN)
+        self._Z_LOAD = S2Z(self._S11_LOAD)
+
+        """
+        plt.figure()
+        plt.plot(freq, np.abs(self._Z_SHORT), label='Short')
+        plt.plot(freq, np.abs(self._Z_OPEN), label='Open')
+        plt.plot(freq, np.abs(self._Z_LOAD), label='50Ohms')
+        plt.loglog()
+        plt.legend()
+        """
+
+    def PORT1_measurement(self, de_embed_fun=None, convert_fun=None, N_average=6):
+        """method for PORT1 end user interface
+
+        Args:
+            de_embed_fun (_type_, optional): _description_. Defaults to None.
+            convert_fun (_type_, optional): _description_. Defaults to None.
+        """
+        S11_measured_all = np.zeros((N_average, self._npts), dtype=np.complex128)
+        for i in range(N_average):
+            print(f"\t--- Measurement {i+1}/{N_average} ---")
+            _, S11_measured = self.get_S11(self._fmin, self._fmax, self._npts)
+            S11_measured_all[i, :] = S11_measured
+        S11_measured_moy = np.average(S11_measured_all, axis = 0)
+
+        return self._frequencies, S11_measured_moy

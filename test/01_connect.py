@@ -8,3 +8,4 @@ print(device_info)
 test = nvna.NVNA()
 print(test.device_info)
 
+del test
