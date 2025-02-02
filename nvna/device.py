@@ -43,15 +43,22 @@ def get_device(vid=nvna_constants["nvna_vid"], pid=nvna_constants["nvna_pid"]):
 def S2Z(S, z0=50.0):
     return z0 * ((1 + S) / (1 - S))
 
+
+def Z2S(Z, z0=50.0):
+    z = Z/z0
+    return ((z - 1) / (z + 1))
+
 def S2Z_void(S):
     print('Warning: you should specify the Scattering to Impedance convertion')
     return np.zeros(np.shape(S), dtype=np.complex128)
+
 
 def Z_de_embed(S, Z_short, Z_open, Z_load, z0=50):
     Z_m = S2Z(S)
     num = z0 * (Z_m - Z_short) * (Z_open - Z_load)
     denom = (Z_open - Z_m) * (Z_load - Z_short)
     return num / denom
+
 
 def Z_de_embed_void(S, Z_short, Z_open, Z_load):
     print('Warning: you should specify the Scattering to Impedance convertion')
@@ -77,6 +84,7 @@ def save_1PCal_to_file(fname, f, SCal_S, SCal_O, SCal_L):
                 )
             )
 
+
 def load_1PCal_from_file(fname):
     data = np.loadtxt(fname, skiprows=1, delimiter=",", dtype=np.complex128)
     f = np.real(data[:, 0])
@@ -87,6 +95,21 @@ def load_1PCal_from_file(fname):
     ZCal_O = data[:, 5]
     ZCal_L = data[:, 6]
     return f, SCal_S, SCal_O, SCal_L, ZCal_S, ZCal_O, ZCal_L
+
+
+def save_1Pmeasurement_to_file(fname, freq, S11, Z):
+    with open(fname, "w") as file:
+        file.write("#f, S11, Z\n")
+        for i in range(len(freq)):
+            file.write(
+                "{}, {}, {}\n".format(
+                    freq[i],
+                    S11[i],
+                    Z[i]
+                )
+            )
+
+
 
 #############
 ## Classes ##
@@ -508,5 +531,9 @@ class NVNA:
                 Z = self.scattering2impedance(self._S11)
         return self._frequencies, Z
 
+    def save_last_PORT1_measurement(self, fname):
+        freq, Z = self.get_last_PORT1_Impedance()
+        S11 = Z2S(Z)
+        save_1Pmeasurement_to_file(fname, freq, S11, Z)
     
 

@@ -11,6 +11,7 @@ print('connected')
 input('Plug through hole Cap and press enter')
 instrument.PORT1_measurement()
 freq, Z_m_deembed_th1 = instrument.get_last_PORT1_Impedance()
+instrument.save_last_PORT1_measurement('th_cap1.csv')
 
 plt.figure()
 plt.plot(freq, np.abs(Z_m_deembed_th1),label='traversante')
