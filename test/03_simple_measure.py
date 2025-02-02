@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 f_start = 5e4   # in Hz
-f_stop = 6.3e9    # in Hz
-n_points = 501
+f_stop = 4e9    # in Hz
+n_points = 201
 
 print("connecting to the NanoVNA... ")
 test = nvna.NVNA()
