@@ -4,18 +4,21 @@ import matplotlib.pyplot as plt
 
 cal_fname = './nvna_current_cal.csv'
 
-def S2Z(S, z0 = 50.):
+def Scatt2Z(S, z0 = 50.):
+    print("fonction etud")
     return z0 * ((1+S)/(1-S))
 
 
-def de_embed(S, Z_short, Z_open, Z_load, z0=50.):
-    Z_m = S2Z(S, z0=z0)
+def de_embed(Z_m, Z_short, Z_open, Z_load, z0=50.):
+    print("fonction etud")
     num = z0*(Z_m-Z_short)*(Z_open-Z_load)
     denom = (Z_open-Z_m)*(Z_load-Z_short)
     return num/denom
 
 print("connecting to the NanoVNA... ")
 instrument = nvna.NVNA(fcal=cal_fname)
+instrument.attach_Scattering2Impedance_converter(Scatt2Z)
+instrument.attach_Zdeembed_converter(de_embed)
 print('connected')
 
 

@@ -239,10 +239,10 @@ class NVNA:
         else:
             print('Warning: NVNA is not calibrated yet')
 
-    def attach_Scattering2Impedance_converter(userfunction):
+    def attach_Scattering2Impedance_converter(self, userfunction):
         self.scattering2impedance = userfunction
 
-    def attach_Zdeembed_converter(userfunction):
+    def attach_Zdeembed_converter(self, userfunction):
         self.Z_de_embedd = userfunction
 
     def send_command(self, command):
