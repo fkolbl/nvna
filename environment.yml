@@ -8,5 +8,7 @@ dependencies:
   - scipy
   - matplotlib
   - scikit-rf
+  - jupyter
   - pip:
     - pyserial
+    - nvna
