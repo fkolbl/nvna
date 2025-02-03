@@ -16,7 +16,7 @@ setup(
     author=AUTHOR_NAME,
     description=DESCRIPTION,
     url=PROJECT_URL,
-    version="1.1.0",
+    version="1.1.1",
     long_description=long_description,
     long_description_content_type='text/markdown',
     # architecture
@@ -27,7 +27,7 @@ setup(
     include_package_data=True,
     # classifiers
     classifiers=[
-        'License :: OSI Approved :: CEA CNRS Inria Logiciel Libre License, version 2.1 (CeCILL-2.1)',
+        'License :: OSI Approved :: MIT License',
         'Development Status :: 5 - Production/Stable',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
