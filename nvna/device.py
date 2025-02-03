@@ -45,11 +45,12 @@ def S2Z(S, z0=50.0):
 
 
 def Z2S(Z, z0=50.0):
-    z = Z/z0
-    return ((z - 1) / (z + 1))
+    z = Z / z0
+    return (z - 1) / (z + 1)
+
 
 def S2Z_void(S):
-    print('Warning: you should specify the Scattering to Impedance convertion')
+    print("Warning: you should specify the Scattering to Impedance convertion")
     return np.zeros(np.shape(S), dtype=np.complex128)
 
 
@@ -61,7 +62,7 @@ def Z_de_embed(S, Z_short, Z_open, Z_load, z0=50):
 
 
 def Z_de_embed_void(S, Z_short, Z_open, Z_load):
-    print('Warning: you should specify the Scattering to Impedance convertion')
+    print("Warning: you should specify the Scattering to Impedance convertion")
     return np.zeros(np.shape(S), dtype=np.complex128)
 
 
@@ -101,14 +102,7 @@ def save_1Pmeasurement_to_file(fname, freq, S11, Z):
     with open(fname, "w") as file:
         file.write("#f, S11, Z\n")
         for i in range(len(freq)):
-            file.write(
-                "{}, {}, {}\n".format(
-                    freq[i],
-                    S11[i],
-                    Z[i]
-                )
-            )
-
+            file.write("{}, {}, {}\n".format(freq[i], S11[i], Z[i]))
 
 
 #############
@@ -122,7 +116,9 @@ class NVNA:
     nvna_instances = weakref.WeakSet()
     nvna_IDs = []
 
-    def __init__(self, ID=None, connect=True, vid=None, pid=None, fcal=None, Tmode=False) -> None:
+    def __init__(
+        self, ID=None, connect=True, vid=None, pid=None, fcal=None, Tmode=False
+    ) -> None:
         """Initialize a NanoVNA device as an instant of an object
 
         Args:
@@ -194,7 +190,7 @@ class NVNA:
         self._S11_THROUGH = None
         # load cal if specified
         if fcal is not None:
-            print('\t... loading specified calibration')
+            print("\t... loading specified calibration")
             self.load_1PCal(fcal)
         # functions for S2Z and deembeding
         self._Tmode = Tmode
@@ -239,7 +235,7 @@ class NVNA:
             int: user ID of the device
         """
         return self.ID
-    
+
     def load_1PCal(self, fname):
         f, SCal_S, SCal_O, SCal_L, ZCal_S, ZCal_O, ZCal_L = load_1PCal_from_file(fname)
         # get cal in instance
@@ -256,11 +252,17 @@ class NVNA:
         self._fmax = self._frequencies[-1]
         self._npts = len(self._frequencies)
 
-    def save_1PCal(self, fname='nvna_current_cal.csv'):
+    def save_1PCal(self, fname="nvna_current_cal.csv"):
         if self._1PCAl or self._FULLCAL:
-            save_1PCal_to_file(fname, self._frequencies, self._S11_SHORT, self._S11_OPEN, self._S11_LOAD)
+            save_1PCal_to_file(
+                fname,
+                self._frequencies,
+                self._S11_SHORT,
+                self._S11_OPEN,
+                self._S11_LOAD,
+            )
         else:
-            print('Warning: NVNA is not calibrated yet')
+            print("Warning: NVNA is not calibrated yet")
 
     def attach_Scattering2Impedance_converter(self, userfunction):
         self.scattering2impedance = userfunction
@@ -439,7 +441,9 @@ class NVNA:
         self._S21 = np.array(S21, dtype=np.complex128)
         return self._frequencies, self._S21
 
-    def PORT1_calibration(self, fmin=None, fmax=None, n_pts=None, n_average=6, savecal=True):
+    def PORT1_calibration(
+        self, fmin=None, fmax=None, n_pts=None, n_average=6, savecal=True
+    ):
         """
         Calibrate the S11 measurement using SOL technique.
         Does not deembed measurements, but stores the calibration vectors in
@@ -495,7 +499,6 @@ class NVNA:
         if savecal:
             self.save_1PCal()
 
-
     def PORT1_measurement(self, de_embed_fun=None, convert_fun=None, N_average=6):
         """method for PORT1 end user interface
 
@@ -513,20 +516,39 @@ class NVNA:
         self._S11 = S11_measured_moy
 
         return self._frequencies, S11_measured_moy
-    
+
     def get_last_PORT1_Scattering(self):
         return self._frequencies, self._S11
-    
+
+    def get_S11_Short(self):
+        return self._frequencies, self._S11_SHORT
+
+    def get_S11_Open(self):
+        return self._frequencies, self._S11_OPEN
+
+    def get_S11_Load(self):
+        return self._frequencies, self._S11_LOAD
+
+    def get_S11_SOL(self):
+        return self._frequencies, self._S11_SHORT, self._S11_OPEN, self._S11_LOAD
+
     def get_last_PORT1_Impedance(self):
         Z = None
         if self._EMPTY:
-            print('Warning: no measurement performed yet')
+            print("Warning: no measurement performed yet")
         else:
             if self._1PCAl or self._FULLCAL:
                 if self._Tmode:
-                    Z = self.Z_de_embedd(self._S11, self._Z_SHORT, self._Z_OPEN, self._Z_LOAD)
+                    Z = self.Z_de_embedd(
+                        self._S11, self._Z_SHORT, self._Z_OPEN, self._Z_LOAD
+                    )
                 else:
-                    Z = self.Z_de_embedd(self.scattering2impedance(self._S11), self._Z_SHORT, self._Z_OPEN, self._Z_LOAD)
+                    Z = self.Z_de_embedd(
+                        self.scattering2impedance(self._S11),
+                        self._Z_SHORT,
+                        self._Z_OPEN,
+                        self._Z_LOAD,
+                    )
             else:
                 Z = self.scattering2impedance(self._S11)
         return self._frequencies, Z
@@ -535,5 +557,3 @@ class NVNA:
         freq, Z = self.get_last_PORT1_Impedance()
         S11 = Z2S(Z)
         save_1Pmeasurement_to_file(fname, freq, S11, Z)
-    
-
