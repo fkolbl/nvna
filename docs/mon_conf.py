@@ -12,7 +12,7 @@ html_css_files = [
     'custom.css',
 ]
 
-# Prevent from unnistalled requierements for nrv
+# Prevent from unnistalled requierements for nvna
 # Please add them in alphabetical order to avoid repetition.
 deps = (
     "numpy",
@@ -22,33 +22,30 @@ deps = (
 for package in deps:
     sys.modules[package] = MagicMock()
 
-import nrv
+import nvna
 
 # -- Project information -----------------------------------------------------
-project = nrv.__project__
-copyright = nrv.__copyright__
-author = nrv.__contributors__
-release = nrv.__version__
+project = nvna.__project__
+copyright = nvna.__copyright__
+author = nvna.__contributors__
+release = nvna.__version__
 version = release
 
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    "nbsphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
-    "sphinx_copybutton",
-    "sphinx_gallery.load_style",
     "sphinx_mdinclude",
     "sphinx_rtd_theme",
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "examples/__nodoc", "__logo/__build"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store",]
 
 # -- Options for HTML output -------------------------------------------------
 # Web site

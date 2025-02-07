@@ -3,9 +3,8 @@ from serial.tools import list_ports
 import weakref
 import numpy as np
 
-from .exceptions import NvnaDeviceNotFound, NvnaIDNotAvailable
+from .exceptions import NvnaDeviceNotFound, NvnaIDNotAvailable, NvnaDeviceNotConnected
 
-import matplotlib.pyplot as plt
 
 ###############
 ## Constants ##
@@ -17,6 +16,12 @@ nvna_constants = {
     "nvna_FMAX": 3e9,
     "nvna_NptsMIN": 11,
     "nvna_NptsMAX": 201,
+}
+
+nvna_defaults = {
+    "nvna_FSTART": 5e5,
+    "nvna_FSTOP": 2.5e9,
+    "nvna_Npts": 201,
 }
 
 
@@ -41,20 +46,54 @@ def get_device(vid=nvna_constants["nvna_vid"], pid=nvna_constants["nvna_pid"]):
 
 
 def S2Z(S, z0=50.0):
+    """_summary_
+
+    Args:
+        S (float or numpy array): Scattering parameter
+        z0 (float, optional): caracteristic impedance. Defaults to 50.0.
+
+    Returns:
+        Z: Impedance converted from the scattering parameter for the caracteristic impedance
+    """
+
     return z0 * ((1 + S) / (1 - S))
 
 
 def Z2S(Z, z0=50.0):
+    """_summary_
+
+    Args:
+        Z (float or numpy array): Impedance
+        z0 (float, optional): caracteristic impedance. Defaults to 50.0.
+
+    Returns:
+        S: Scattering parameter computed from the impedance and the caracteristic impedance
+    """
     z = Z / z0
     return (z - 1) / (z + 1)
 
 
 def S2Z_void(S):
+    """
+    Warning: used for teaching only, prevent any automated solution to force student to code,
+    """
     print("Warning: you should specify the Scattering to Impedance convertion")
     return np.zeros(np.shape(S), dtype=np.complex128)
 
 
 def Z_de_embed(S, Z_short, Z_open, Z_load, z0=50):
+    """_summary_
+
+    Args:
+        S (numpy array): scattering parameter
+        Z_short (numpy array): calibration short measurement
+        Z_open (numpy array):  calibration open measurement
+        Z_load (numpy array):  calibration load measurement
+        z0 (int, optional): caracteristic impedance. Defaults to 50.
+
+    Returns:
+        Z: de-embedded impedance calculated from the scattering parameter for a calibration
+    """
     Z_m = S2Z(S)
     num = z0 * (Z_m - Z_short) * (Z_open - Z_load)
     denom = (Z_open - Z_m) * (Z_load - Z_short)
@@ -62,11 +101,23 @@ def Z_de_embed(S, Z_short, Z_open, Z_load, z0=50):
 
 
 def Z_de_embed_void(S, Z_short, Z_open, Z_load):
+    """
+    Warning: used for teaching only, prevent any automated solution to force student to code,
+    """
     print("Warning: you should specify the Scattering to Impedance convertion")
     return np.zeros(np.shape(S), dtype=np.complex128)
 
 
 def save_1PCal_to_file(fname, f, SCal_S, SCal_O, SCal_L):
+    """Saves the calibration to a csv file
+
+    Args:
+        fname (stre): _description_
+        f (numpy array): frequency vector of the calibration
+        SCal_S (numpy array): Scattering vector of the calibration with short termination
+        SCal_O (numpy array): Scattering vector of the calibration with open termination
+        SCal_L (numpy array): Scattering vector of the calibration with load termination
+    """
     ZCal_S = S2Z(SCal_S)
     ZCal_O = S2Z(SCal_O)
     ZCal_L = S2Z(SCal_L)
@@ -87,6 +138,20 @@ def save_1PCal_to_file(fname, f, SCal_S, SCal_O, SCal_L):
 
 
 def load_1PCal_from_file(fname):
+    """load a calibration from a file
+
+    Args:
+        fname (str): filename or path
+
+    Returns:
+        f (numpy array): _description_
+        SCal_S (numpy array): scattering parameter for the short calibration
+        SCal_0 (numpy array): scattering parameter for the open calibration
+        SCal_L (numpy array): scattering parameter for the load calibration
+        ZCal_S (numpy array): impedance for the short calibration
+        ZCal_O (numpy array): impedance for the open calibration
+        ZCal_L (numpy array): impedance for the load calibration
+    """
     data = np.loadtxt(fname, skiprows=1, delimiter=",", dtype=np.complex128)
     f = np.real(data[:, 0])
     SCal_S = data[:, 1]
@@ -99,6 +164,14 @@ def load_1PCal_from_file(fname):
 
 
 def save_1Pmeasurement_to_file(fname, freq, S11, Z):
+    """Save one port measurement to a file
+
+    Args:
+        fname (str): filename
+        freq (numpy array): frequency of measurement
+        S11 (numpy array): scattering parameter
+        Z (numpy array): impedance
+    """
     with open(fname, "w") as file:
         file.write("#f, S11, Z\n")
         for i in range(len(freq)):
@@ -134,6 +207,10 @@ class NVNA:
             pid (int, optional):
                 Product ID, if not specified, set to the default NanoVNA Product ID (22336).
                 Defaults to None.
+            fcal (str, optional):
+                calibration file path, if not specified, no calibration is used.
+            Tmode (bool, optional):
+                Teacher mode (the scattering parameter convertion and the de-embedding are performed automatically)
 
         Raises:
             NvnaIDNotAvailable: _description_
@@ -211,7 +288,7 @@ class NVNA:
         NVNA.nvna_instances.remove(self)
 
     def _connect(self):
-        """_summary_
+        """Connect to a physical device, internal use only
 
         Raises:
             NvnaDeviceNotFound: _description_
@@ -220,12 +297,18 @@ class NVNA:
         if self.device_info is not None:
             try:
                 self.serial = serial.Serial(self.device_info["device"], baudrate=115200)
+                self.set_sweep(
+                    nvna_defaults["nvna_FSTART"],
+                    nvna_defaults["nvna_FSTOP"],
+                    nvna_defaults["nvna_Npts"],
+                )
             except:
-                raise  # to be completed
+                raise NvnaDeviceNotConnected
         else:
             raise NvnaDeviceNotFound
 
     def _disconnect(self):
+        """Disconnect from the physical device, internal use only"""
         self.serial.close()
 
     def get_ID(self):
@@ -237,6 +320,11 @@ class NVNA:
         return self.ID
 
     def load_1PCal(self, fname):
+        """Load a full one port Short Open Load calibration from a file.
+
+        Args:
+            fname (str): filename
+        """
         f, SCal_S, SCal_O, SCal_L, ZCal_S, ZCal_O, ZCal_L = load_1PCal_from_file(fname)
         # get cal in instance
         self._1PCAl = True
@@ -253,6 +341,11 @@ class NVNA:
         self._npts = len(self._frequencies)
 
     def save_1PCal(self, fname="nvna_current_cal.csv"):
+        """Save the current 1 full port calibration in a file
+
+        Args:
+            fname (str, optional): _description_. Defaults to "nvna_current_cal.csv".
+        """
         if self._1PCAl or self._FULLCAL:
             save_1PCal_to_file(
                 fname,
@@ -265,9 +358,20 @@ class NVNA:
             print("Warning: NVNA is not calibrated yet")
 
     def attach_Scattering2Impedance_converter(self, userfunction):
+        """Attach a custom function to the device for Sattering parameter to impedance convertion
+
+        Args:
+            userfunction (function):
+                function to be called with S11 values and optional Z value as input and return Z values
+        """
         self.scattering2impedance = userfunction
 
     def attach_Zdeembed_converter(self, userfunction):
+        """Attach a custom function to the device for Sattering parameter and deembedding
+
+        Args:
+            userfunction (function): custom function to be called for deembedding
+        """
         self.Z_de_embedd = userfunction
 
     def send_command(self, command):
@@ -402,6 +506,17 @@ class NVNA:
         return self._frequencies, self._S11, self._S21
 
     def get_S11(self, start, stop, Npoints):
+        """Launch a S11 measurement and get results
+
+        Args:
+            start (float): starting frequency
+            stop (float): stopping frequency
+            Npoints (int): numpy of measurement frequencies
+
+        Returns:
+            freq (numpy array): frequencies of measurement
+            S11 (numpy array): reflection S parameter
+        """
         actual_start = int(start)
         actual_stop = int(stop)
         actual_Npoints = int(Npoints)
@@ -422,6 +537,17 @@ class NVNA:
         return self._frequencies, self._S11
 
     def get_S21(self, start, stop, Npoints):
+        """Launch a S21 measurement and get results
+
+        Args:
+            start (float): starting frequency
+            stop (float): stopping frequency
+            Npoints (int): numpy of measurement frequencies
+
+        Returns:
+            freq (numpy array): frequencies of measurement
+            S21 (numpy array): reflection S parameter
+        """
         actual_start = int(start)
         actual_stop = int(stop)
         actual_Npoints = int(Npoints)
@@ -518,21 +644,59 @@ class NVNA:
         return self._frequencies, S11_measured_moy
 
     def get_last_PORT1_Scattering(self):
+        """returns the last S11 measurement
+
+        Returns:
+            freq (numpy array): frequencies of measurement
+            S11 (numpy array): reflection S parameter
+        """
         return self._frequencies, self._S11
 
     def get_S11_Short(self):
+        """returns the S11 short calibration measurement
+
+        Returns:
+            freq (numpy array): frequencies of calibration
+            S11_S (numpy array): reflection S parameter for short calibration
+        """
         return self._frequencies, self._S11_SHORT
 
     def get_S11_Open(self):
+        """returns the S11 open calibration measurement
+
+        Returns:
+            freq (numpy array): frequencies of calibration
+            S11_O (numpy array): reflection S parameter for open calibration
+        """
         return self._frequencies, self._S11_OPEN
 
     def get_S11_Load(self):
+        """returns the S11 load calibration measurement
+
+        Returns:
+            freq (numpy array): frequencies of calibration
+            S11_L (numpy array): reflection S parameter for load calibration
+        """
         return self._frequencies, self._S11_LOAD
 
     def get_S11_SOL(self):
+        """returns the S11 calibrations measurements for the full calibration
+
+        Returns:
+            freq (numpy array): frequencies of calibration
+            S11_S (numpy array): reflection S parameter for short calibration
+            S11_O (numpy array): reflection S parameter for open calibration
+            S11_L (numpy array): reflection S parameter for load calibration
+        """
         return self._frequencies, self._S11_SHORT, self._S11_OPEN, self._S11_LOAD
 
     def get_last_PORT1_Impedance(self):
+        """returns the last de-embbed Z measurement
+
+        Returns:
+            freq (numpy array): frequencies of measurement
+            Z (numpy array): impedance
+        """
         Z = None
         if self._EMPTY:
             print("Warning: no measurement performed yet")
@@ -554,6 +718,12 @@ class NVNA:
         return self._frequencies, Z
 
     def save_last_PORT1_measurement(self, fname):
+        """saves the last measurement to a file.
+        Scattering parameter is not de-embedded, but impedance is de-embedded
+
+        Args:
+            fname (str): filename
+        """
         freq, Z = self.get_last_PORT1_Impedance()
         S11 = Z2S(Z)
         save_1Pmeasurement_to_file(fname, freq, S11, Z)
