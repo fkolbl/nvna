@@ -1,0 +1,6 @@
+Résolu ça marche-> input function not working in jupyter
+-> rajouter des label à conmpléter sur les graphes dans le tuto
+-> rajouter qu'il faut choisir l'environnement nvna-env si demandé
+-> problème avec la specification des fréquences de mesure -> rajouter une fonction !!! 
+-> rajouter le tracé pour le passage de S vers impédance, et passer le nom de variable à Z_m
+-> dans l'exemple de de_embedd, passer le nom de variable de l'impédance à Z tout court
