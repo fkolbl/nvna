@@ -302,6 +302,9 @@ class NVNA:
                     nvna_defaults["nvna_FSTOP"],
                     nvna_defaults["nvna_Npts"],
                 )
+                self._fmin = nvna_defaults["nvna_FSTART"]
+                self._fmax = nvna_defaults["nvna_FSTOP"]
+                self._npts = nvna_defaults["nvna_Npts"]
             except:
                 raise NvnaDeviceNotConnected
         else:

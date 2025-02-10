@@ -16,7 +16,7 @@ setup(
     author=AUTHOR_NAME,
     description=DESCRIPTION,
     url=PROJECT_URL,
-    version="1.1.2",
+    version="1.1.3",
     long_description=long_description,
     long_description_content_type='text/markdown',
     # architecture
